@@ -1,0 +1,30 @@
+# Test output files
+*.log
+*.json
+*.html
+*.xml
+
+# Coverage reports
+.coverage
+htmlcov/
+.pytest_cache/
+__pycache__/
+*.pyc
+*.pyo
+
+# Locust results
+locust_*.csv
+locust_*.html
+
+# Temporary files
+*.tmp
+*.temp
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Keep example files
+!test_scenarios.json
