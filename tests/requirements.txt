@@ -1,0 +1,26 @@
+# Python Testing Dependencies for WUT-WAY Integration
+# Install with: pip install -r tests/requirements.txt
+
+# Core testing frameworks
+pytest>=7.4.0
+pytest-html>=3.2.0
+pytest-cov>=4.1.0
+pytest-timeout>=2.1.0
+pytest-asyncio>=0.21.0
+
+# HTTP client
+requests>=2.31.0
+
+# Performance testing
+locust>=2.15.0
+
+# Environment management
+python-dotenv>=1.0.0
+
+# Data validation
+pydantic>=2.0.0
+
+# Optional: Code quality
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.4.0
