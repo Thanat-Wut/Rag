@@ -1,11 +1,10 @@
-from brain.decision import DecisionEngine, get_decision_engine, decide
-from brain.classifier import QueryClassifier, classifier, classify_query
+"""
+Brain module - Core logic for WUT Backend
 
-__all__ = [
-    "DecisionEngine",
-    "get_decision_engine", 
-    "decide",
-    "QueryClassifier",
-    "classifier",
-    "classify_query"
-]
+This module contains the heart of WUT's intelligence:
+- Classifier: Classifies queries into departments
+- Decision Engine: Makes decision about action to take
+- Coordinator: Orchestrates the entire flow
+"""
+
+__all__ = ["classifier", "decision", "coordinator"]
