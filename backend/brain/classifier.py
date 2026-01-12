@@ -1,135 +1,214 @@
 """
-Query classifier for WUT Backend
-Classifies user queries by department and detects keywords
-"""
-import re
-from typing import Dict, List, Tuple
-import logging
+Query Classifier - Classifies user queries into departments and detects signals
 
-# Use relative import when running as package, absolute when running directly
-try:
-    from ..models import ClassifiedQuery
-except ImportError:
-    from models import ClassifiedQuery
+Responsibilities:
+- Categorize queries (HR, IT, Accounting, Other)
+- Extract keywords
+- Detect action and urgent keywords
+- Assess classification confidence
+"""
+
+import logging
+from typing import List, Tuple, Dict
+from models import ClassifiedQuery
 
 logger = logging.getLogger(__name__)
 
+# =============================================================================
+# Department-specific Keywords
+# =============================================================================
 
-class QueryClassifier:
-    """Classifies user queries into departments and detects signals"""
+DEPARTMENT_KEYWORDS = {
+    "HR": {
+        "keywords": [
+            "leave", "vacation", "holiday", "absent", "sick", "ลา", "วันลา",
+            "salary", "wage", "payroll", "เงินเดือน", "อัตราเงินเดือน",
+            "contract", "employment", "hire", "recruit", "สัญญา", "จ้าง",
+            "benefit", "insurance", "health", "ประกันสุขภาพ", "สวัสดิการ",
+            "appraisal", "review", "performance", "evaluation", "ประเมินผล",
+            "policy", "rule", "guideline", "code of conduct", "นโยบาย",
+            "resign", "terminate", "retirement", "ลาออก", "เกษียณ",
+        ],
+        "confidence_weight": 1.0,
+    },
+    "IT": {
+        "keywords": [
+            "password", "email", "login", "account", "access", "รหัสผ่าน", "บัญชี",
+            "software", "application", "app", "install", "download", "application",
+            "computer", "laptop", "pc", "device", "hardware", "เครื่องคอมพิวเตอร์",
+            "network", "wifi", "internet", "connection", "vpn", "เน็ตเวิร์ก",
+            "server", "database", "system", "downtime", "bug", "error",
+            "backup", "recovery", "data", "file", "storage", "ข้อมูล",
+            "security", "virus", "malware", "antivirus", "firewall",
+            "support", "ticket", "issue", "problem", "helpdesk",
+        ],
+        "confidence_weight": 1.0,
+    },
+    "Accounting": {
+        "keywords": [
+            "invoice", "receipt", "bill", "payment", "ใบแจ้งหนี้", "ใบเสร็จ", "ชำระเงิน",
+            "expense", "cost", "budget", "expense claim", "ค่าใช้จ่าย", "งบประมาณ",
+            "tax", "vat", "withholding", "ภาษี", "vat", "ภาษีอากร",
+            "financial", "report", "statement", "ledger", "account", "บัญชี",
+            "audit", "compliance", "reconciliation", "รับรอง",
+            "purchase", "order", "po", "supplier", "vendor", "ผู้จัดจำหน่าย",
+            "refund", "deduction", "allowance", "compensation", "เงินคืน",
+            "investment", "profit", "revenue", "expense", "income", "รายได้",
+        ],
+        "confidence_weight": 1.0,
+    },
+}
+
+# =============================================================================
+# Action Keywords - Indicates query needs immediate action/escalation
+# =============================================================================
+
+ACTION_KEYWORDS = {
+    "urgent_action": [
+        "error", "crash", "down", "broken", "lost", "missing", "ผิดพลาด",
+        "cannot access", "ไม่สามารถ", "ไม่ได้", "ไม่เข้า",
+        "blocked", "locked", "failed", "ล็อก", "ล้มเหลว",
+    ],
+    "urgent_temporal": [
+        "asap", "urgent", "emergency", "immediately", "now", "ด่วน",
+        "เร่งด่วน", "ทันที", "โดยด่วน",
+    ],
+}
+
+
+class Classifier:
+    """
+    Classifies queries into departments and extracts business signals.
+    
+    Example:
+        classifier = Classifier()
+        result = classifier.classify("I lost my password")
+        # Returns ClassifiedQuery with category="IT", confidence=0.95
+    """
     
     def __init__(self):
-        # Department keywords
-        self.department_keywords: Dict[str, List[str]] = {
-            "HR": [
-                "ลา", "พักร้อน", "ลาป่วย", "ลากิจ", "วันหยุด", "เงินเดือน", "salary",
-                "สวัสดิการ", "benefit", "ประกัน", "insurance", "พนักงาน", "employee",
-                "สัญญาจ้าง", "contract", "ลาออก", "resign", "สมัครงาน", "recruit",
-                "ฝึกอบรม", "training", "ประเมิน", "evaluation", "โบนัส", "bonus",
-                "leave", "vacation", "sick", "annual"
-            ],
-            "IT": [
-                "รหัสผ่าน", "password", "อีเมล", "email", "คอมพิวเตอร์", "computer",
-                "โน๊ตบุ๊ค", "laptop", "เครือข่าย", "network", "wifi", "vpn",
-                "ระบบ", "system", "ล่ม", "down", "ช้า", "slow", "บัญชี", "account",
-                "login", "ล็อกอิน", "software", "ซอฟต์แวร์", "printer", "เครื่องพิมพ์",
-                "reset", "install", "ติดตั้ง", "virus", "ไวรัส", "backup"
-            ],
-            "Accounting": [
-                "ใบเสร็จ", "receipt", "ใบกำกับ", "invoice", "ภาษี", "tax",
-                "เบิก", "reimburse", "งบ", "budget", "ค่าใช้จ่าย", "expense",
-                "โอนเงิน", "transfer", "บัญชี", "account", "การเงิน", "finance",
-                "จ่าย", "payment", "เช็ค", "check", "supplier", "vendor"
-            ]
-        }
-        
-        # Action keywords
-        self.action_keywords: List[str] = [
-            "ต้องการ", "ขอ", "สมัคร", "ลง", "เปลี่ยน", "แก้ไข", "อัพเดท",
-            "สร้าง", "ลบ", "เพิ่ม", "โอน", "จ่าย", "เบิก", "อนุมัติ",
-            "request", "apply", "change", "update", "create", "delete",
-            "add", "transfer", "pay", "approve", "submit", "cancel"
-        ]
-        
-        # Urgent keywords
-        self.urgent_keywords: List[str] = [
-            "ด่วน", "urgent", "เร่ง", "ทันที", "immediately", "asap",
-            "วิกฤต", "critical", "ล่ม", "down", "ไม่ได้", "cannot",
-            "หยุด", "stop", "ค้าง", "stuck", "emergency", "ฉุกเฉิน"
-        ]
+        """Initialize classifier with department keywords"""
+        self.departments = DEPARTMENT_KEYWORDS
+        self.action_keywords = ACTION_KEYWORDS
+        logger.info("✅ Classifier initialized")
     
     def classify(self, query: str) -> ClassifiedQuery:
         """
-        Classify a user query.
+        Classify a query into a department and extract signals.
         
         Args:
-            query: User's question or request
+            query: User's input query
         
         Returns:
-            ClassifiedQuery with category, signals, and confidence
+            ClassifiedQuery with classification results
         """
         query_lower = query.lower()
         
-        # Detect department
-        category, dept_confidence = self._detect_department(query_lower)
+        # Find matching department
+        category, confidence, matched_keywords = self._find_department(query_lower)
         
-        # Detect action keywords
-        has_action, action_keywords = self._detect_keywords(query_lower, self.action_keywords)
+        # Detect action signals
+        has_action, has_urgent = self._detect_signals(query_lower)
         
-        # Detect urgent keywords
-        has_urgent, urgent_keywords = self._detect_keywords(query_lower, self.urgent_keywords)
+        logger.info(
+            f"Classification: query='{query[:50]}...' category={category} "
+            f"confidence={confidence:.2f} action={has_action} urgent={has_urgent}"
+        )
         
-        # Combine detected keywords
-        all_keywords = action_keywords + urgent_keywords
-        
-        result = ClassifiedQuery(
+        return ClassifiedQuery(
             category=category,
             has_action=has_action,
             has_urgent=has_urgent,
-            keywords=all_keywords,
-            confidence=dept_confidence
+            keywords=matched_keywords,
+            confidence=confidence,
+        )
+    
+    def _find_department(self, query_lower: str) -> Tuple[str, float, List[str]]:
+        """
+        Find the best matching department for the query.
+        
+        Args:
+            query_lower: Lowercased query string
+        
+        Returns:
+            Tuple of (department, confidence, matched_keywords)
+        """
+        scores = {}
+        all_matched = {}
+        
+        for dept, dept_info in self.departments.items():
+            matched = self._extract_keywords(query_lower, dept_info["keywords"])
+            all_matched[dept] = matched
+            
+            if matched:
+                # Confidence based on number of matches
+                # More matches = higher confidence
+                score = min(len(matched) * 0.15, 1.0)
+                scores[dept] = score
+        
+        if not scores:
+            logger.debug(f"No department match, defaulting to 'Other'")
+            return "Other", 0.0, []
+        
+        # Get department with highest score
+        best_dept = max(scores, key=scores.get)
+        best_score = scores[best_dept]
+        matched_keywords = all_matched[best_dept]
+        
+        return best_dept, best_score, matched_keywords
+    
+    def _extract_keywords(self, query: str, keywords: List[str]) -> List[str]:
+        """
+        Extract matched keywords from query.
+        
+        Args:
+            query: Lowercased query string
+            keywords: List of keywords to match
+        
+        Returns:
+            List of matched keywords
+        """
+        matched = []
+        for keyword in keywords:
+            # Simple substring matching (could be upgraded to word boundaries)
+            if keyword in query:
+                matched.append(keyword)
+        return matched
+    
+    def _detect_signals(self, query_lower: str) -> Tuple[bool, bool]:
+        """
+        Detect action and urgent signals in query.
+        
+        Args:
+            query_lower: Lowercased query string
+        
+        Returns:
+            Tuple of (has_action, has_urgent)
+        """
+        has_action = any(
+            kw in query_lower for kw in self.action_keywords.get("urgent_action", [])
         )
         
-        logger.debug(f"Classified query: category={category}, "
-                    f"has_action={has_action}, has_urgent={has_urgent}")
+        has_urgent = any(
+            kw in query_lower for kw in self.action_keywords.get("urgent_temporal", [])
+        )
         
-        return result
-    
-    def _detect_department(self, query: str) -> Tuple[str, float]:
-        """Detect department from query"""
-        scores: Dict[str, int] = {"HR": 0, "IT": 0, "Accounting": 0, "Other": 0}
-        
-        for dept, keywords in self.department_keywords.items():
-            for keyword in keywords:
-                if keyword.lower() in query:
-                    scores[dept] += 1
-        
-        # Find max score
-        max_dept = max(scores, key=scores.get)
-        max_score = scores[max_dept]
-        
-        if max_score == 0:
-            return "Other", 0.5
-        
-        # Calculate confidence based on keyword matches
-        total_matches = sum(scores.values())
-        confidence = min(0.5 + (max_score / max(total_matches, 1)) * 0.5, 1.0)
-        
-        return max_dept, confidence
-    
-    def _detect_keywords(self, query: str, keywords: List[str]) -> Tuple[bool, List[str]]:
-        """Detect if any keywords are present"""
-        found = []
-        for keyword in keywords:
-            if keyword.lower() in query:
-                found.append(keyword)
-        return len(found) > 0, found
+        return has_action or has_urgent, has_urgent
 
 
+# =============================================================================
 # Global classifier instance
-classifier = QueryClassifier()
+# =============================================================================
+
+_classifier_instance: Classifier = None
 
 
-def classify_query(query: str) -> ClassifiedQuery:
-    """Convenience function for classification"""
-    return classifier.classify(query)
+def get_classifier() -> Classifier:
+    """
+    Get or create the global classifier instance.
+    Uses lazy initialization for efficiency.
+    """
+    global _classifier_instance
+    if _classifier_instance is None:
+        _classifier_instance = Classifier()
+    return _classifier_instance
