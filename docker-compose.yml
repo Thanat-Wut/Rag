@@ -1,0 +1,67 @@
+version: "3.8"
+
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  way-backend:
+    build: ../Rag_way
+    ports:
+      - "8000:8000"
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      QDRANT_URL: http://qdrant:6333
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-1.5-flash}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  wut-backend:
+    build: ./backend
+    ports:
+      - "8001:8001"
+    depends_on:
+      way-backend:
+        condition: service_healthy
+    environment:
+      WAY_API_URL: http://way-backend:8000
+      WAY_TIMEOUT: 10
+      USE_MOCK: "false"
+      PORT: 8001
+      HOST: 0.0.0.0
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DEBUG: ${DEBUG:-false}
+      CONFIDENCE_THRESHOLD: ${CONFIDENCE_THRESHOLD:-0.70}
+      ESCALATION_CONFIDENCE_THRESHOLD: ${ESCALATION_CONFIDENCE_THRESHOLD:-0.50}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  wut-frontend:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - wut-backend
+    environment:
+      VITE_API_URL: http://localhost:8001
+
+volumes:
+  qdrant_data:
