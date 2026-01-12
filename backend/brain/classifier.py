@@ -210,5 +210,7 @@ def get_classifier() -> Classifier:
     """
     global _classifier_instance
     if _classifier_instance is None:
-        _classifier_instance = Classifier()
+        _classifier_instance = Classifier() 
     return _classifier_instance
+
+classifier = get_classifier()

@@ -6,13 +6,15 @@ from typing import Dict, Any, Optional
 import uuid
 
 try:
-    from .classifier import classifier, ClassifiedQuery
+    from .classifier import get_classifier, ClassifiedQuery
+    classifier = get_classifier()
     from .decision import decide
     from ..connectors.way_api import get_way_client, WAYAPIError, WAYConnectionError
     from ..models import HelpdeskRequest, HelpdeskResponse
     from ..config import settings
 except ImportError:
-    from brain.classifier import classifier
+    from brain.classifier import get_classifier, ClassifiedQuery
+    classifier = get_classifier()
     from brain.decision import decide
     from connectors.way_api import get_way_client, WAYAPIError, WAYConnectionError
     from models import HelpdeskRequest, HelpdeskResponse, ClassifiedQuery

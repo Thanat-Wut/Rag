@@ -200,3 +200,36 @@ def get_decision_engine() -> DecisionEngine:
     if _decision_engine_instance is None:
         _decision_engine_instance = DecisionEngine()
     return _decision_engine_instance
+def decide(way_response: Dict[str, any], classified: Dict[str, any]) -> str:
+    """
+    Convenience function to make decision without instantiating engine.
+    
+    Args:
+        way_response: Response from WAY API
+        classified: Classification results with category, has_action, has_urgent
+        
+    Returns:
+        Action type as string (e.g., "answer", "escalate")
+    """
+    engine = get_decision_engine()
+    
+    # Extract confidence from WAY response
+    confidence = way_response.get("rag_confidence", 0.0)
+    
+    # Build signals from classified data
+    from models import BusinessSignals
+    signals = BusinessSignals(
+        has_action_keywords=classified.get("has_action", False),
+        has_urgent_keywords=classified.get("has_urgent", False),
+        query_department_match=True  # Assume match for now
+    )
+    
+    # Get decision
+    action, reason = engine.decide(
+        confidence=confidence,
+        signals=signals,
+        query=way_response.get("query", "")
+    )
+    
+    logger.info(f"Decision: {action} - {reason}")
+    return action.value  # Return string value of ActionType enum

@@ -1,4 +1,3 @@
-version: "3.8"
 
 services:
   qdrant:
@@ -8,10 +7,11 @@ services:
     volumes:
       - qdrant_data:/qdrant/storage
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/6333' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
 
   way-backend:
     build: ../Rag_way
@@ -41,7 +41,7 @@ services:
     environment:
       WAY_API_URL: http://way-backend:8000
       WAY_TIMEOUT: 10
-      USE_MOCK: "false"
+      USE_MOCK: "false" # เปลี่ยนเป็น true ถ้าไม่มี way-backend
       PORT: 8001
       HOST: 0.0.0.0
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
