@@ -1,0 +1,499 @@
+{
+  "_metadata": {
+    "description": "Test scenarios for WUT-WAY RAG Integration",
+    "version": "1.0.0",
+    "last_updated": "2026-01-13",
+    "total_scenarios": 25
+  },
+  "functional_tests": [
+    {
+      "id": "F001",
+      "name": "Simple IT query - Password reset",
+      "input": {
+        "message": "How do I reset my password?",
+        "department": "IT",
+        "trace_id": "test-f001"
+      },
+      "expected": {
+        "action": "answer",
+        "min_confidence": 0.7,
+        "business_signals": {
+          "has_action_keywords": false,
+          "has_urgent_keywords": false
+        }
+      }
+    },
+    {
+      "id": "F002",
+      "name": "HR query - Annual leave",
+      "input": {
+        "message": "How many days of annual leave do I have?",
+        "department": "HR",
+        "trace_id": "test-f002"
+      },
+      "expected": {
+        "action": "answer",
+        "min_confidence": 0.6,
+        "business_signals": {
+          "has_action_keywords": false,
+          "query_department_match": true
+        }
+      }
+    },
+    {
+      "id": "F003",
+      "name": "Accounting query - Expense claim",
+      "input": {
+        "message": "How do I submit an expense claim?",
+        "department": "Accounting",
+        "trace_id": "test-f003"
+      },
+      "expected": {
+        "action": "answer",
+        "min_confidence": 0.6
+      }
+    },
+    {
+      "id": "F004",
+      "name": "Urgent query - System crash",
+      "input": {
+        "message": "URGENT: My computer crashed and I lost all data!",
+        "department": "IT",
+        "trace_id": "test-f004"
+      },
+      "expected": {
+        "action": "escalate",
+        "business_signals": {
+          "has_action_keywords": true,
+          "has_urgent_keywords": true
+        }
+      }
+    },
+    {
+      "id": "F005",
+      "name": "Action query - Email blocked",
+      "input": {
+        "message": "I cannot access my email, it says my account is blocked",
+        "department": "IT",
+        "trace_id": "test-f005"
+      },
+      "expected": {
+        "business_signals": {
+          "has_action_keywords": true
+        }
+      }
+    },
+    {
+      "id": "F006",
+      "name": "Thai language query - Leave request",
+      "input": {
+        "message": "ฉันจะขอลาพักร้อนได้อย่างไร",
+        "department": "HR",
+        "trace_id": "test-f006"
+      },
+      "expected": {
+        "business_signals": {
+          "has_action_keywords": true
+        }
+      }
+    },
+    {
+      "id": "F007",
+      "name": "Complex query with context",
+      "input": {
+        "message": "I need to claim travel expenses from my business trip",
+        "department": "Accounting",
+        "context": "I traveled to Bangkok last week for a client meeting and have receipts for hotel and meals",
+        "trace_id": "test-f007"
+      },
+      "expected": {
+        "action": "answer",
+        "min_confidence": 0.5
+      }
+    },
+    {
+      "id": "F008",
+      "name": "Department mismatch - HR query from IT user",
+      "input": {
+        "message": "What is the salary review process?",
+        "department": "IT",
+        "trace_id": "test-f008"
+      },
+      "expected": {
+        "business_signals": {
+          "query_department_match": false
+        }
+      }
+    },
+    {
+      "id": "F009",
+      "name": "Multi-keyword query",
+      "input": {
+        "message": "ASAP: Cannot login, password reset failed, account locked",
+        "department": "IT",
+        "trace_id": "test-f009"
+      },
+      "expected": {
+        "action": "escalate",
+        "business_signals": {
+          "has_action_keywords": true,
+          "has_urgent_keywords": true
+        }
+      }
+    },
+    {
+      "id": "F010",
+      "name": "General query - No specific department",
+      "input": {
+        "message": "What are the office hours?",
+        "department": "Other",
+        "trace_id": "test-f010"
+      },
+      "expected": {
+        "action": "answer"
+      }
+    }
+  ],
+  "edge_cases": [
+    {
+      "id": "E001",
+      "name": "Very short query",
+      "input": {
+        "message": "Help",
+        "trace_id": "test-e001"
+      },
+      "expected": {
+        "action": "clarify",
+        "min_confidence": 0.0
+      }
+    },
+    {
+      "id": "E002",
+      "name": "Query with special characters",
+      "input": {
+        "message": "How do I reset password @#$% & <script>?",
+        "department": "IT",
+        "trace_id": "test-e002"
+      },
+      "expected": {
+        "http_status": 200
+      }
+    },
+    {
+      "id": "E003",
+      "name": "Mixed language query",
+      "input": {
+        "message": "How do I ขอลาพักร้อน for annual leave?",
+        "department": "HR",
+        "trace_id": "test-e003"
+      },
+      "expected": {
+        "http_status": 200
+      }
+    },
+    {
+      "id": "E004",
+      "name": "Query with numbers and dates",
+      "input": {
+        "message": "I need to claim 2500 baht expense from 15/01/2026",
+        "department": "Accounting",
+        "trace_id": "test-e004"
+      },
+      "expected": {
+        "http_status": 200
+      }
+    },
+    {
+      "id": "E005",
+      "name": "Empty department (should default to Other)",
+      "input": {
+        "message": "General question about company policy",
+        "trace_id": "test-e005"
+      },
+      "expected": {
+        "http_status": 200
+      }
+    },
+    {
+      "id": "E006",
+      "name": "Invalid department name",
+      "input": {
+        "message": "Test query",
+        "department": "InvalidDepartment",
+        "trace_id": "test-e006"
+      },
+      "expected": {
+        "http_status": 200
+      }
+    },
+    {
+      "id": "E007",
+      "name": "Query with URLs",
+      "input": {
+        "message": "I cannot access https://intranet.company.com/portal",
+        "department": "IT",
+        "trace_id": "test-e007"
+      },
+      "expected": {
+        "http_status": 200,
+        "business_signals": {
+          "has_action_keywords": true
+        }
+      }
+    },
+    {
+      "id": "E008",
+      "name": "Repeated words query",
+      "input": {
+        "message": "password password reset reset help help",
+        "department": "IT",
+        "trace_id": "test-e008"
+      },
+      "expected": {
+        "http_status": 200
+      }
+    }
+  ],
+  "error_cases": [
+    {
+      "id": "ERR001",
+      "name": "Missing message field",
+      "input": {
+        "department": "IT",
+        "trace_id": "test-err001"
+      },
+      "expected": {
+        "http_status": 422
+      }
+    },
+    {
+      "id": "ERR002",
+      "name": "Empty message",
+      "input": {
+        "message": "",
+        "trace_id": "test-err002"
+      },
+      "expected": {
+        "http_status": 422
+      }
+    },
+    {
+      "id": "ERR003",
+      "name": "Message too long (>2000 chars)",
+      "input": {
+        "message": "x",
+        "_message_repeat": 2500,
+        "trace_id": "test-err003"
+      },
+      "expected": {
+        "http_status": 422
+      }
+    },
+    {
+      "id": "ERR004",
+      "name": "Invalid JSON payload",
+      "raw_payload": "{invalid json}",
+      "expected": {
+        "http_status": 422
+      }
+    },
+    {
+      "id": "ERR005",
+      "name": "Invalid temperature value",
+      "input": {
+        "message": "Test query",
+        "temperature": 2.0,
+        "trace_id": "test-err005"
+      },
+      "expected": {
+        "http_status": 422
+      }
+    }
+  ],
+  "performance_tests": [
+    {
+      "id": "PERF001",
+      "name": "Quick query - Single keyword",
+      "input": {
+        "message": "password",
+        "department": "IT",
+        "trace_id": "test-perf001"
+      },
+      "expected": {
+        "max_response_time_ms": 3000
+      }
+    },
+    {
+      "id": "PERF002",
+      "name": "Standard query",
+      "input": {
+        "message": "How do I reset my password?",
+        "department": "IT",
+        "trace_id": "test-perf002"
+      },
+      "expected": {
+        "max_response_time_ms": 5000
+      }
+    },
+    {
+      "id": "PERF003",
+      "name": "Complex query with context",
+      "input": {
+        "message": "I need help with submitting travel expense claims",
+        "department": "Accounting",
+        "context": "I have multiple receipts from different vendors during my business trip last week",
+        "max_results": 10,
+        "trace_id": "test-perf003"
+      },
+      "expected": {
+        "max_response_time_ms": 7000
+      }
+    }
+  ],
+  "keyword_detection_tests": [
+    {
+      "id": "KW001",
+      "name": "HR keywords - leave",
+      "input": {
+        "message": "I want to request sick leave",
+        "department": "HR",
+        "trace_id": "test-kw001"
+      },
+      "expected": {
+        "detected_keywords": ["leave", "sick"],
+        "category": "HR"
+      }
+    },
+    {
+      "id": "KW002",
+      "name": "IT keywords - password",
+      "input": {
+        "message": "Cannot login to email account",
+        "department": "IT",
+        "trace_id": "test-kw002"
+      },
+      "expected": {
+        "detected_keywords": ["login", "email", "account"],
+        "category": "IT"
+      }
+    },
+    {
+      "id": "KW003",
+      "name": "Accounting keywords - invoice",
+      "input": {
+        "message": "Where do I submit my invoice for payment?",
+        "department": "Accounting",
+        "trace_id": "test-kw003"
+      },
+      "expected": {
+        "detected_keywords": ["invoice", "payment"],
+        "category": "Accounting"
+      }
+    },
+    {
+      "id": "KW004",
+      "name": "Urgent keywords - ASAP",
+      "input": {
+        "message": "ASAP need help",
+        "department": "Other",
+        "trace_id": "test-kw004"
+      },
+      "expected": {
+        "business_signals": {
+          "has_urgent_keywords": true
+        }
+      }
+    },
+    {
+      "id": "KW005",
+      "name": "Action keywords - error",
+      "input": {
+        "message": "System error when downloading file",
+        "department": "IT",
+        "trace_id": "test-kw005"
+      },
+      "expected": {
+        "business_signals": {
+          "has_action_keywords": true
+        }
+      }
+    },
+    {
+      "id": "KW006",
+      "name": "Thai keywords - ลาพักร้อน",
+      "input": {
+        "message": "ขอลาพักร้อนด้วยเหตุส่วนตัว",
+        "department": "HR",
+        "trace_id": "test-kw006"
+      },
+      "expected": {
+        "detected_keywords": ["ลา"],
+        "category": "HR",
+        "business_signals": {
+          "has_action_keywords": true
+        }
+      }
+    },
+    {
+      "id": "KW007",
+      "name": "Thai urgent keywords - ด่วน",
+      "input": {
+        "message": "ด่วนมาก เครื่องเสีย",
+        "department": "IT",
+        "trace_id": "test-kw007"
+      },
+      "expected": {
+        "detected_keywords": ["ด่วน"],
+        "business_signals": {
+          "has_urgent_keywords": true
+        }
+      }
+    }
+  ],
+  "department_classification_tests": [
+    {
+      "id": "DEPT001",
+      "name": "Clear HR query",
+      "input": {
+        "message": "How do I apply for maternity leave?",
+        "trace_id": "test-dept001"
+      },
+      "expected": {
+        "classified_category": "HR"
+      }
+    },
+    {
+      "id": "DEPT002",
+      "name": "Clear IT query",
+      "input": {
+        "message": "My laptop won't connect to the VPN",
+        "trace_id": "test-dept002"
+      },
+      "expected": {
+        "classified_category": "IT"
+      }
+    },
+    {
+      "id": "DEPT003",
+      "name": "Clear Accounting query",
+      "input": {
+        "message": "What is the VAT rate for this invoice?",
+        "trace_id": "test-dept003"
+      },
+      "expected": {
+        "classified_category": "Accounting"
+      }
+    },
+    {
+      "id": "DEPT004",
+      "name": "Ambiguous query",
+      "input": {
+        "message": "What are the company policies?",
+        "trace_id": "test-dept004"
+      },
+      "expected": {
+        "classified_category": "Other"
+      }
+    }
+  ]
+}
